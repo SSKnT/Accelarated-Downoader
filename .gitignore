@@ -1,0 +1,28 @@
+
+# Compiled files
+*.o
+*.bin
+downloader
+
+# Build directories
+build/
+dist/
+bin/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+*.egg-info/
+__pycache__/
+
+# Logs
+*.log
