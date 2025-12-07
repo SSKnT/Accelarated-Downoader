@@ -9,17 +9,9 @@ typedef struct {
     pthread_mutex_t* mutex;
 } ProgressData;
 
-// discard callback - just throw away data
-size_t discard_callback(void *ptr, size_t size, size_t nmemb, void *data) {
-    (void)ptr;
-    (void)data;
-    return size * nmemb;
-}
-
 // basic write callback
 size_t write_callback(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    size_t written = fwrite(ptr, size, nmemb, stream);
-    return written;
+    return fwrite(ptr, size, nmemb, stream);
 }
 
 // write callback that tracks progress
@@ -30,12 +22,10 @@ size_t write_callback_progress(void *ptr, size_t size, size_t nmemb, void* userd
     
     size_t written = fwrite(ptr, size, nmemb, fp);
     
-    // update shared counter safely
-    if (pdata && pdata->mutex && pdata->total_downloaded) {
-        pthread_mutex_lock(pdata->mutex);
-        *(pdata->total_downloaded) += written;
-        pthread_mutex_unlock(pdata->mutex);
-    }
+    // update shared counter
+    pthread_mutex_lock(pdata->mutex);
+    *(pdata->total_downloaded) += written;
+    pthread_mutex_unlock(pdata->mutex);
     
     return written;
 }
@@ -50,39 +40,18 @@ long get_file_size(const char *url, int *supports_ranges) {
     curl = curl_easy_init();
     if (!curl) return -1;
     
-    // try range request first
+    // HEAD request for file info
     curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 0L);
-    curl_easy_setopt(curl, CURLOPT_NOBODY, 0L);
-    curl_easy_setopt(curl, CURLOPT_HEADER, 1L);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, discard_callback);
-    curl_easy_setopt(curl, CURLOPT_RANGE, "0-0");
     
     res = curl_easy_perform(curl);
     
     if (res == CURLE_OK) {
         curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &size);
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
-        
-        // 206 = partial, 200 = ok
         *supports_ranges = (code == 206 || code == 200) ? 1 : 0;
-        
-        // if got 1 byte or nothing, need real size
-        if (size <= 1 || size == 0) {
-            curl_easy_cleanup(curl);
-            
-            curl = curl_easy_init();
-            curl_easy_setopt(curl, CURLOPT_URL, url);
-            curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
-            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-            curl_easy_setopt(curl, CURLOPT_FAILONERROR, 0L);
-            
-            res = curl_easy_perform(curl);
-            if (res == CURLE_OK) {
-                curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &size);
-            }
-        }
     } else {
         fprintf(stderr, "Error getting file info: %s\n", curl_easy_strerror(res));
         curl_easy_cleanup(curl);
@@ -208,6 +177,64 @@ void* download_worker(void* arg) {
         pthread_exit((void*)-1);
     }
     
-    printf("Thread %d: done\n", info->chunk_id);
     pthread_exit((void*)0);
+}
+
+// download manager - runs in child process
+int run_download(const char* url, const char* output, int num_threads, 
+                 long file_size, SharedProgress* shared) {
+    long chunk_size = file_size / num_threads;
+    
+    // allocate memory for threads
+    pthread_t* tids = malloc(num_threads * sizeof(pthread_t));
+    ChunkInfo* chunks = malloc(num_threads * sizeof(ChunkInfo));
+    
+    if (!tids || !chunks) {
+        fprintf(stderr, "malloc failed in child\n");
+        return -1;
+    }
+    
+    // create all download threads
+    for (int i = 0; i < num_threads; i++) {
+        long start = i * chunk_size;
+        long end = (i == num_threads - 1) ? file_size - 1 : (start + chunk_size - 1);
+        
+        chunks[i].url = url;
+        chunks[i].start_byte = start;
+        chunks[i].end_byte = end;
+        chunks[i].chunk_id = i;
+        chunks[i].total_downloaded = &shared->total_downloaded;
+        chunks[i].mutex = &shared->mutex;
+        
+        if (pthread_create(&tids[i], NULL, download_worker, &chunks[i]) != 0) {
+            fprintf(stderr, "Failed to create thread %d\n", i);
+            free(tids);
+            free(chunks);
+            return -1;
+        }
+    }
+    
+    // wait for threads
+    for (int i = 0; i < num_threads; i++) {
+        void* ret;
+        pthread_join(tids[i], &ret);
+    }
+    
+    free(tids);
+    free(chunks);
+    
+    // merge chunks
+    if (merge_chunks(num_threads, output) != 0) {
+        fprintf(stderr, "Merge failed in child\n");
+        return -1;
+    }
+    
+    // mark as done
+    pthread_mutex_lock(&shared->mutex);
+    shared->done = 1;
+    pthread_mutex_unlock(&shared->mutex);
+    
+    // dont destroy mutex - parent will do it
+    
+    return 0;
 }
