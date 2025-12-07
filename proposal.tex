@@ -1,0 +1,154 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+
+\geometry{margin=1in}
+
+% Minimal section spacing
+\titlespacing*{\section}{0pt}{1.2em}{0.6em}
+\titlespacing*{\subsection}{0pt}{1em}{0.4em}
+
+% Define custom colors
+\definecolor{uetblue}{RGB}{0,51,102}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{uetblue}}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{uetblue}}{\thesubsection}{1em}{}
+
+\begin{document}
+
+% -----------------------
+% FIRST PAGE
+% -----------------------
+\begin{titlepage}
+    \centering
+
+    % University Logo
+    \vspace*{0.5cm}
+    \includegraphics[width=4cm]{uet.png}
+    
+    \vspace{0.8cm}
+    {\LARGE \textbf{University of Engineering and Technology, Lahore} \par}
+    {\large Department of Computer Science \par}
+
+    \vspace{1.2cm}
+    {\color{uetblue}\rule{\textwidth}{2pt}}
+    \vspace{0.3cm}
+    
+    {\Huge \textbf{Multi-Threaded Accelerated} \par}
+    \vspace{0.2cm}
+    {\Huge \textbf{File Downloader} \par}
+    
+    \vspace{0.3cm}
+    {\color{uetblue}\rule{\textwidth}{2pt}}
+
+    \vspace{1cm}
+    {\Large \textbf{Operating Systems Semester Project Proposal} \par}
+
+    \vspace{1.5cm}
+    \begin{tabular}{ll}
+        \textbf{Group Members:} & \\
+        & 2023-CS-715 \\
+        & 2023-CS-734 \\
+        & 2023-CS-740 \\
+    \end{tabular}
+
+    \vspace{1.5cm}
+    {\large \textbf{Course Instructor:} Ma'am Mariyam \par}
+    
+    \vspace{1cm}
+    {\large \textbf{Submission Date:} December 8, 2025 \par}
+
+    \vfill
+    
+    {\large \textit{Fall 2025 Semester} \par}
+\end{titlepage}
+
+% -----------------------
+% SECOND PAGE ONWARD
+% -----------------------
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction}
+In today's digital age, efficient data transfer is crucial for productivity and user experience. Traditional download methods utilize a single connection stream, which often results in suboptimal bandwidth utilization and prolonged download times. This project develops a \textbf{Multi-Threaded Accelerated File Downloader} in C on Linux that improves download speeds by splitting files into byte ranges and downloading each segment concurrently using parallel threads. The implementation integrates fundamental OS concepts including multi-threading, process management, IPC, synchronization mechanisms, and dynamic memory management, representing an excellent Complex Computing Problem (CCP).
+
+\section{Problem Statement}
+Users experience slow downloads due to single-stream connections. While servers support HTTP range requests, basic tools don't exploit this feature. The core challenges include: bandwidth underutilization, coordinating multiple concurrent workers, managing shared state safely across threads, ensuring data integrity during chunk merging, preventing race conditions, efficient memory management, and coordinating parent-child process communication. The solution must create concurrent workers, manage shared state, coordinate downloads, and merge segments while demonstrating proper OS-level primitives.
+
+\section{Objectives}
+\textbf{Functional:} Develop a command-line download accelerator accepting URLs and parameters, implement parallel downloading with multiple threads, provide real-time progress tracking, merge chunks into complete files, and handle errors gracefully.
+
+\textbf{Technical:} Implement CPU scheduling (FCFS/Round Robin), utilize pthreads for concurrent operations, employ dynamic memory allocation, use \texttt{fork()} and \texttt{exec()} for process control, implement IPC via shared memory or message queues, apply mutexes and semaphores for thread safety, and demonstrate proper resource cleanup.
+
+\section{Methodology}
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Input Processing:} Accept URL, number of segments, and output filename via command-line
+    \item \textbf{File Info Retrieval:} Send HTTP HEAD request to get file size and verify range support
+    \item \textbf{Process Creation:} Main process uses \texttt{fork()} to create child download controller
+    \item \textbf{Memory Management:} Dynamically allocate buffers and shared memory using \texttt{malloc()}
+    \item \textbf{Multi-Threading:} Create worker threads with \texttt{pthread\_create()}, each downloading assigned byte range to part files
+    \item \textbf{Synchronization:} Use mutexes for shared variable protection and semaphores for completion signaling
+    \item \textbf{CPU Scheduling:} Implement simple scheduler demonstrating FCFS or Round Robin
+    \item \textbf{IPC:} Use shared memory or message queues for progress tracking between processes
+    \item \textbf{File Merging:} Child process merges part files in sequence after all threads complete
+    \item \textbf{Progress Display:} Parent process reads IPC data and displays real-time status
+\end{enumerate}
+
+\section{Scope}
+The project comprehensively covers all required OS concepts:
+
+\textbf{CPU Scheduling:} Implementation of FCFS or Round Robin scheduler with thread state management.
+
+\textbf{Threads:} Creation and management of POSIX threads (pthreads) for concurrent download workers.
+
+\textbf{Memory Management:} Dynamic allocation using \texttt{malloc()}, buffer management, and shared memory for IPC.
+
+\textbf{Process Creation:} Use of \texttt{fork()} and \texttt{exec()} for download controller and file merger processes.
+
+\textbf{IPC:} Shared memory or message queues for progress tracking between parent and child processes.
+
+\textbf{Synchronization:} Mutexes for critical sections, semaphores for signaling, preventing race conditions and deadlocks.
+
+The system will be modular, well-documented, and demonstrate all concepts clearly for evaluation and viva.
+
+\section{Expected Outcomes \& Tools}
+\textbf{Deliverables:} Functional command-line download accelerator, demonstrable speed improvements, well-documented modular C code, comprehensive project report, and individual understanding of all modules for viva.
+
+\textbf{Technologies:} C language (C99+), Linux platform, GCC compiler, pthread library, libcurl for HTTP, development tools including GDB, Valgrind, Make, and Git.
+
+\section{Timeline \& Conclusion}
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Phase} & \textbf{Date/Duration} \\
+\hline
+Proposal Submission & Dec 8, 2025 \\
+\hline
+Design \& Architecture & Dec 9-12 \\
+\hline
+Core Implementation & Dec 13-18 \\
+\hline
+IPC \& Synchronization & Dec 19-20 \\
+\hline
+Testing \& Documentation & Dec 21-23 \\
+\hline
+Final Evaluation & Dec 24, 2025 \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.5cm}
+This project represents a comprehensive application of OS concepts to solve a practical problem. By implementing a multi-threaded download accelerator, we will gain hands-on experience with concurrent programming, process management, IPC, and synchronization. The modular design facilitates individual evaluation during viva, and the project fully adheres to course requirements while providing practical understanding of modern parallel processing systems.
+
+\end{document}
