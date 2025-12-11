@@ -76,7 +76,6 @@ int main(int argc, char *argv[]) {
     }
     
     if (pid == 0) {
-        // CHILD PROCESS - does the downloading
         printf("Child process started (PID: %d)\n\n", getpid());
         
         long chunk_size = file_size / num_threads;
@@ -85,7 +84,7 @@ int main(int argc, char *argv[]) {
         
         int result = run_download(url, output, num_threads, file_size, shared);
         
-        // child exits - dont destroy shared memory, parent needs it
+        // child exits
         exit(result);
     }
     
