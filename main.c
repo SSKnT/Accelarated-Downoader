@@ -88,11 +88,11 @@ int main(int argc, char *argv[]) {
         exit(result);
     }
     
-    // PARENT PROCESS - shows progress
+    // parent process
     printf("Parent process monitoring (PID: %d)\n", getpid());
     printf("Waiting for child (PID: %d) to download...\n\n", pid);
     
-    // show progress while child downloads
+    // show progress while child download
     printf("Progress: ");
     fflush(stdout);
     

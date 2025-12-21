@@ -137,7 +137,6 @@ int merge_chunks(int num_chunks, const char *output_file) {
     char buffer[8192];
     size_t bytes;
     
-    // read each part and write to output
     for (int i = 0; i < num_chunks; i++) {
         snprintf(part_name, sizeof(part_name), "part_%d.tmp", i);
         
