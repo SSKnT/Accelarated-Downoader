@@ -26,3 +26,12 @@ __pycache__/
 
 # Logs
 *.log
+
+# Downloaded files
+*.zip
+*.tar.gz
+*.tar.xz
+*.rar
+*.7z
+*.exe
+*.bin

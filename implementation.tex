@@ -1,0 +1,223 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{float}
+
+\geometry{margin=1in}
+
+% Minimal section spacing
+\titlespacing*{\section}{0pt}{1.2em}{0.6em}
+\titlespacing*{\subsection}{0pt}{1em}{0.4em}
+
+% Define custom colors
+\definecolor{uetblue}{RGB}{0,51,102}
+\definecolor{codegray}{RGB}{240,240,240}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{uetblue}}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{uetblue}}{\thesubsection}{1em}{}
+
+% Code listing style
+\lstset{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    showstringspaces=false
+}
+
+\begin{document}
+
+% -----------------------
+% FIRST PAGE
+% -----------------------
+\begin{titlepage}
+    \centering
+
+    % University Logo
+    \vspace*{0.5cm}
+    \includegraphics[width=4cm]{uet.png}
+    
+    \vspace{0.8cm}
+    {\LARGE \textbf{University of Engineering and Technology, Lahore} \par}
+    {\large Department of Computer Science \par}
+
+    \vspace{1.2cm}
+    {\color{uetblue}\rule{\textwidth}{2pt}}
+    \vspace{0.3cm}
+    
+    {\Huge \textbf{Multi-Threaded Accelerated} \par}
+    \vspace{0.2cm}
+    {\Huge \textbf{File Downloader} \par}
+    
+    \vspace{0.3cm}
+    {\color{uetblue}\rule{\textwidth}{2pt}}
+
+    \vspace{1cm}
+    {\Large \textbf{Operating Systems Semester Project Implementation} \par}
+
+    \vspace{1.5cm}
+    \begin{tabular}{ll}
+        \textbf{Group Members:} & \\
+        & 2023-CS-715 \\
+        & 2023-CS-734 \\
+        & 2023-CS-740 \\
+    \end{tabular}
+
+    \vspace{1.5cm}
+    {\large \textbf{Course Instructor:} Ma'am Mariyam \par}
+    
+    \vspace{1cm}
+    {\large \textbf{Submission Date:} December 21, 2025 \par}
+
+    \vfill
+    
+    {\large \textit{Fall 2025 Semester} \par}
+\end{titlepage}
+
+% -----------------------
+% SECOND PAGE ONWARD
+% -----------------------
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Project Overview}
+The Multi-Threaded Accelerated File Downloader implements concurrent downloading using multiple threads, process-based architecture with fork(), inter-process communication via shared memory, and thread synchronization using mutexes. This document presents the implementation and working demonstration.
+
+\section{System Architecture}
+
+\subsection{Process Architecture}
+\textbf{Parent Process:} Creates shared memory, forks child process, monitors download progress, and displays real-time updates.
+
+\textbf{Child Process:} Creates worker threads, coordinates parallel chunk downloads, merges chunks into final file, and signals completion.
+
+\subsection{Threading and Memory Model}
+The child process creates POSIX threads where each downloads a specific byte range concurrently. Dynamic memory allocation (malloc) manages thread structures, while mmap() with MAP\_SHARED creates shared memory for IPC. Process-shared mutex configured via pthread\_mutexattr\_setpshared() ensures thread-safe progress updates.
+
+\section{Implementation Details}
+
+\subsection{File Structure}
+\textbf{main.c:} Argument parsing, shared memory setup, fork() implementation, progress monitoring, and file verification.
+
+\textbf{downloader.c:} HTTP file detection, chunk download workers, progress callbacks, chunk merging, and thread management.
+
+\textbf{downloader.h:} SharedProgress and ChunkInfo structures, function prototypes.
+
+\subsection{Key Operating System Concepts}
+
+\textbf{Process Management:} fork() creates child process; parent uses waitpid() for synchronization.
+
+\textbf{IPC:} Shared memory (mmap) contains total\_downloaded counter, file\_size, done flag, and process-shared mutex.
+
+\textbf{Multi-Threading:} Each thread executes download\_worker(), downloads assigned byte range via HTTP Range requests, updates progress atomically, and writes to temporary part files.
+
+\textbf{Synchronization:} Process-shared mutexes prevent race conditions when updating shared progress counter.
+
+\textbf{Memory Management:} Dynamic allocation for threads/chunks, shared memory for IPC, proper cleanup prevents leaks.
+
+\section{Working Demonstration}
+
+\subsection{Command Line Usage}
+The program accepts three arguments:
+\begin{lstlisting}[language=bash]
+./downloader <URL> [output_file] [threads]
+\end{lstlisting}
+
+Example command:
+\begin{lstlisting}[language=bash]
+./downloader "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" 7zip.tar.xz 5
+\end{lstlisting}
+
+\subsection{Execution Flow}
+Figure~\ref{fig:screenshot} shows the actual execution of the download accelerator. The terminal output demonstrates:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Initialization:} URL, output filename, and thread count displayed
+    \item \textbf{File Detection:} Server queried for file size (1.48 MB) and range support confirmation
+    \item \textbf{Process Creation:} Parent (PID: 12954) forks child (PID: 12973)
+    \item \textbf{Chunk Distribution:} File divided into 4 chunks of 0.37 MB each
+    \item \textbf{Parallel Downloads:} All 4 threads start simultaneously downloading their byte ranges:
+    \begin{itemize}
+        \item Thread 0: bytes 0-389238
+        \item Thread 1: bytes 389239-778477
+        \item Thread 2: bytes 778478-1167716
+        \item Thread 3: bytes 1167717-1556955
+    \end{itemize}
+    \item \textbf{Progress Monitoring:} Parent displays real-time progress reaching 100\%
+    \item \textbf{Completion:} Child process signals completion, chunks merged successfully
+    \item \textbf{Verification:} File size matches expected size (1556956 bytes)
+    \item \textbf{Integrity Check:} File identified as valid XZ compressed data
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/Screenshot_2025-12-21_10-11-18.jpg}
+    \caption{Terminal Output Showing Complete Download Process with Multi-Threading}
+    \label{fig:screenshot}
+\end{figure}
+
+\subsection{Key Observations}
+\textbf{Concurrent Execution:} All threads start simultaneously (successful pthread implementation).
+
+\textbf{IPC:} Parent receives progress updates from child via shared memory.
+
+\textbf{Synchronization:} No race conditions; accurate 100\% completion tracking.
+
+\textbf{Process Management:} Clean fork(), proper PID tracking, successful waitpid().
+
+\textbf{File Integrity:} Downloaded file verified as valid archive (correct chunk merging).
+
+\section{Technical Achievements}
+
+\textbf{OS Concepts Demonstrated:} Multi-threading (POSIX threads), process management (fork/waitpid), IPC (shared memory via mmap), synchronization (process-shared mutexes), and dynamic memory management.
+
+\textbf{Performance:} Parallel connections improve bandwidth utilization and reduce download times with configurable thread count (1-16).
+
+\textbf{Robustness:} Thread count validation, error handling for fork/mmap/pthread operations, and file integrity verification.
+
+\section{Build and Testing}
+
+\textbf{Compilation:}
+\begin{lstlisting}[language=make]
+gcc -Wall -pthread -std=c99 -o downloader main.c downloader.c -lcurl
+\end{lstlisting}
+
+\textbf{Testing:} Verified with files from 1 MB to 1 GB, thread counts 1-16, and integrity checks using tar/file commands.
+
+\section{Conclusion}
+
+The Multi-Threaded Accelerated File Downloader successfully demonstrates comprehensive understanding and implementation of core operating systems concepts. The project achieves all stated objectives including parallel downloading, real-time progress tracking, process-based architecture, inter-process communication, thread synchronization, and dynamic memory management.
+
+The working implementation, as evidenced by the terminal screenshot, proves the correct functioning of all components: multiple threads downloading concurrently, parent-child process communication, shared memory IPC, mutex synchronization, and successful file merging with integrity verification.
+
+This project represents a practical application of theoretical OS concepts, providing hands-on experience with system-level programming, concurrent execution models, and inter-process coordination mechanisms. All group members have gained deep understanding of threading, process management, synchronization primitives, and memory management in Linux systems.
+
+\vspace{1cm}
+\noindent\textbf{Project Status:} Complete and Functional \\
+\textbf{Date:} December 21, 2025 \\
+\textbf{Repository:} GitHub - Accelarated-Downoader
+
+\end{document}
+\section{Conclusion}
+
+The Multi-Threaded Accelerated File Downloader successfully implements core OS concepts: parallel downloading with pthreads, process-based architecture using fork(), IPC via shared memory, mutex synchronization, and dynamic memory management.
+
+The working implementation (shown in terminal screenshot) demonstrates concurrent thread execution, parent-child IPC, race-free synchronization, and successful file integrity verification. This project provides practical experience with system-level programming and concurrent execution in Linux.
+
+\vspace{1cm}
+\noindent\textbf{Project Status:} Complete and Functional \\
+\textbf{Date:} December 21, 2025 \\
+\textbf{Repository:} GitHub - Accelarated-Downoader
